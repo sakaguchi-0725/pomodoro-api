@@ -3,6 +3,7 @@ package usecase
 import (
 	"pomodoro-api/domain"
 	"pomodoro-api/repository"
+	"pomodoro-api/validator"
 )
 
 type ITaskUseCase interface {
@@ -15,10 +16,11 @@ type ITaskUseCase interface {
 
 type taskUsecase struct {
 	tr repository.ITaskRepository
+	tv validator.ITaskValidator
 }
 
-func NewTaskUsecase(tr repository.ITaskRepository) ITaskUseCase {
-	return &taskUsecase{tr}
+func NewTaskUsecase(tr repository.ITaskRepository, tv validator.ITaskValidator) ITaskUseCase {
+	return &taskUsecase{tr, tv}
 }
 
 func (tu *taskUsecase) GetAllTasks(userId uint) ([]domain.TaskResponse, error) {
@@ -58,6 +60,10 @@ func (tu *taskUsecase) GetTaskById(userId uint, taskId uint) (domain.TaskRespons
 }
 
 func (tu *taskUsecase) CreateTask(task domain.Task) (domain.TaskResponse, error) {
+	if err := tu.tv.TaskValidate(task); err != nil {
+		return domain.TaskResponse{}, err
+	}
+
 	if err := tu.tr.CreateTask(&task); err != nil {
 		return domain.TaskResponse{}, err
 	}
@@ -73,6 +79,10 @@ func (tu *taskUsecase) CreateTask(task domain.Task) (domain.TaskResponse, error)
 }
 
 func (tu *taskUsecase) UpdateTask(task domain.Task, userId uint, taskId uint) (domain.TaskResponse, error) {
+	if err := tu.tv.TaskValidate(task); err != nil {
+		return domain.TaskResponse{}, err
+	}
+
 	if err := tu.tr.UpdateTask(&task, userId, taskId); err != nil {
 		return domain.TaskResponse{}, err
 	}

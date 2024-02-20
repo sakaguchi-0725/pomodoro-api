@@ -4,6 +4,7 @@ import (
 	"os"
 	"pomodoro-api/domain"
 	"pomodoro-api/repository"
+	"pomodoro-api/validator"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -17,13 +18,18 @@ type IUserUsecase interface {
 
 type userUsecase struct {
 	ur repository.IUserRepository
+	uv validator.IUserValidator
 }
 
-func NewUserUsecase(ur repository.IUserRepository) IUserUsecase {
-	return &userUsecase{ur}
+func NewUserUsecase(ur repository.IUserRepository, uv validator.IUserValidator) IUserUsecase {
+	return &userUsecase{ur, uv}
 }
 
 func (uu *userUsecase) SignUp(user domain.User) (domain.UserResponse, error) {
+	if err := uu.uv.UserValidate(user); err != nil {
+		return domain.UserResponse{}, err
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
 	if err != nil {
 		return domain.UserResponse{}, err
@@ -43,6 +49,10 @@ func (uu *userUsecase) SignUp(user domain.User) (domain.UserResponse, error) {
 }
 
 func (uu *userUsecase) Login(user domain.User) (string, error) {
+	if err := uu.uv.UserValidate(user); err != nil {
+		return "", err
+	}
+
 	storedUser := domain.User{}
 	if err := uu.ur.GetUserByEmail(&storedUser, user.Email); err != nil {
 		return "", err
