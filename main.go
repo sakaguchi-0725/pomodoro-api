@@ -14,6 +14,11 @@ func main() {
 	userUsecase := usecase.NewUserUsecase(userRepository)
 	userHandler := handler.NewUserHandler(userUsecase)
 
-	e := router.NewRouter(userHandler)
+	// Task
+	taskRepository := repository.NewTaskRepository(db)
+	taskUsecase := usecase.NewTaskUsecase(taskRepository)
+	taskHandler := handler.NewTaskHandler(taskUsecase)
+
+	e := router.NewRouter(userHandler, taskHandler)
 	e.Logger.Fatal(e.Start(":8080"))
 }
