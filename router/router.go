@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func NewRouter(uh handler.IUserHandler, th handler.ITaskHandler) *echo.Echo {
+func NewRouter(uh handler.IUserHandler, taskHandler handler.ITaskHandler, timeHandler handler.ITimeHandler) *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:3000", os.Getenv("FE_URL")},
+		AllowOrigins: []string{"http://localhost:5173", os.Getenv("FE_URL")},
 		AllowHeaders: []string{
 			echo.HeaderOrigin,
 			echo.HeaderContentType,
@@ -37,16 +37,25 @@ func NewRouter(uh handler.IUserHandler, th handler.ITaskHandler) *echo.Echo {
 	e.GET("/csrf", uh.CsrfToken)
 
 	// Task
-	t := e.Group("/tasks")
-	t.Use(echojwt.WithConfig(echojwt.Config{
+	tasks := e.Group("/tasks")
+	tasks.Use(echojwt.WithConfig(echojwt.Config{
 		SigningKey:  []byte(os.Getenv("SECRET")),
 		TokenLookup: "cookie:token",
 	}))
-	t.GET("", th.GetAllTasks)
-	t.GET("/:taskId", th.GetTaskById)
-	t.POST("", th.CreateTask)
-	t.PUT("/:taskId", th.UpdateTask)
-	t.DELETE("/:taskId", th.DeleteTask)
+	tasks.GET("", taskHandler.GetAllTasks)
+	tasks.GET("/:taskId", taskHandler.GetTaskById)
+	tasks.POST("", taskHandler.CreateTask)
+	tasks.PUT("/:taskId", taskHandler.UpdateTask)
+	tasks.DELETE("/:taskId", taskHandler.DeleteTask)
+
+	// Time
+	times := e.Group("/times")
+	times.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey:  []byte(os.Getenv("SECRET")),
+		TokenLookup: "cookie:token",
+	}))
+	times.GET("", timeHandler.GetAllTimes)
+	times.POST("", timeHandler.StoreTime)
 
 	return e
 }

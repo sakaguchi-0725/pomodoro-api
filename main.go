@@ -22,6 +22,12 @@ func main() {
 	taskUsecase := usecase.NewTaskUsecase(taskRepository, taskValidator)
 	taskHandler := handler.NewTaskHandler(taskUsecase)
 
-	e := router.NewRouter(userHandler, taskHandler)
+	// Time
+	timeValidator := validator.NewTimeValidator()
+	timeRepository := repository.NewTimeRepository(db)
+	timeUsecase := usecase.NewTimeUsecase(timeRepository, timeValidator)
+	timeHandler := handler.NewTimeHandler(timeUsecase)
+
+	e := router.NewRouter(userHandler, taskHandler, timeHandler)
 	e.Logger.Fatal(e.Start(":8080"))
 }
