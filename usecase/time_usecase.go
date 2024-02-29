@@ -22,6 +22,10 @@ func NewTimeUsecase(tr repository.ITimeRepository, tv validator.ITimeValidator) 
 }
 
 func (tu *timeUsecase) GetReport(userId uint, reportType, startDate, endDate string) (domain.ReportResponse, error) {
+	if err := tu.tv.ReportValidate(reportType, startDate, endDate); err != nil {
+		return domain.ReportResponse{}, err
+	}
+
 	var reportRes domain.ReportResponse
 
 	totalFocusTime, err := tu.tr.GetTotalFocusTime(userId)
