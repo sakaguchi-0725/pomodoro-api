@@ -54,7 +54,7 @@ func NewRouter(uh handler.IUserHandler, taskHandler handler.ITaskHandler, timeHa
 		SigningKey:  []byte(os.Getenv("SECRET")),
 		TokenLookup: "cookie:token",
 	}))
-	times.GET("", timeHandler.GetAllTimes)
+	times.GET("/report", timeHandler.GetReport)
 	times.POST("", timeHandler.StoreTime)
 
 	return e

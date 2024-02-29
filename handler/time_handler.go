@@ -10,7 +10,7 @@ import (
 )
 
 type ITimeHandler interface {
-	GetAllTimes(c echo.Context) error
+	GetReport(c echo.Context) error
 	StoreTime(c echo.Context) error
 }
 
@@ -22,12 +22,16 @@ func NewTimeHandler(tu usecase.ITimeUsecase) ITimeHandler {
 	return &timeHandler{tu}
 }
 
-func (th *timeHandler) GetAllTimes(c echo.Context) error {
+func (th *timeHandler) GetReport(c echo.Context) error {
 	user := c.Get("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	userId := claims["user_id"]
 
-	timeRes, err := th.tu.GetAllTimes(uint(userId.(float64)))
+	reportType := c.QueryParam("report_type")
+	startDate := c.QueryParam("start_date")
+	endDate := c.QueryParam("end_date")
+
+	timeRes, err := th.tu.GetReport(uint(userId.(float64)), reportType, startDate, endDate)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}

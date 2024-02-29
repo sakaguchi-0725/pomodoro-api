@@ -4,10 +4,11 @@ import (
 	"pomodoro-api/domain"
 	"pomodoro-api/repository"
 	"pomodoro-api/validator"
+	"time"
 )
 
 type ITimeUsecase interface {
-	GetAllTimes(userId uint) ([]domain.TimeResponse, error)
+	GetReport(userId uint, reportType, startDate, endDate string) (domain.ReportResponse, error)
 	StoreTime(time domain.Time) (domain.TimeResponse, error)
 }
 
@@ -20,24 +21,51 @@ func NewTimeUsecase(tr repository.ITimeRepository, tv validator.ITimeValidator) 
 	return &timeUsecase{tr, tv}
 }
 
-func (tu *timeUsecase) GetAllTimes(userId uint) ([]domain.TimeResponse, error) {
-	times := []domain.Time{}
-	if err := tu.tr.GetAllTimes(&times, userId); err != nil {
-		return nil, err
+func (tu *timeUsecase) GetReport(userId uint, reportType, startDate, endDate string) (domain.ReportResponse, error) {
+	var reportRes domain.ReportResponse
+
+	totalFocusTime, err := tu.tr.GetTotalFocusTime(userId)
+	if err != nil {
+		return domain.ReportResponse{}, err
 	}
 
-	resTimes := []domain.TimeResponse{}
-	for _, v := range times {
-		t := domain.TimeResponse{
-			ID:        v.ID,
-			FocusTime: v.FocusTime,
-			CreatedAt: v.CreatedAt,
-			UpdatedAt: v.UpdatedAt,
+	consecutiveDays, err := tu.tr.GetConsecutiveDays(userId)
+	if err != nil {
+		return domain.ReportResponse{}, err
+	}
+
+	reportRes.TotalFocusTime = totalFocusTime
+	reportRes.ConsecutiveDays = consecutiveDays
+
+	switch reportType {
+	case "all":
+		now := time.Now()
+
+		dailyReport, err := tu.tr.GetDailyReport(userId)
+		if err != nil {
+			return domain.ReportResponse{}, nil
 		}
-		resTimes = append(resTimes, t)
+
+		weeklyReport, err := tu.tr.GetWeeklyReport(userId, now.AddDate(0, -2, 0), now)
+		if err != nil {
+			return domain.ReportResponse{}, err
+		}
+
+		reportRes.DailyReport = dailyReport
+		reportRes.WeeklyReport = weeklyReport
+	case "weekly":
+		parsedStartDate, _ := time.Parse("2006-01-02", startDate)
+		parsedEndDate, _ := time.Parse("2006-01-02", endDate)
+
+		weeklyReport, err := tu.tr.GetWeeklyReport(userId, parsedStartDate, parsedEndDate)
+		if err != nil {
+			return domain.ReportResponse{}, err
+		}
+
+		reportRes.WeeklyReport = weeklyReport
 	}
 
-	return resTimes, nil
+	return reportRes, nil
 }
 
 func (tu *timeUsecase) StoreTime(time domain.Time) (domain.TimeResponse, error) {

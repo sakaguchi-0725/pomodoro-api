@@ -2,12 +2,16 @@ package repository
 
 import (
 	"pomodoro-api/domain"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 type ITimeRepository interface {
-	GetAllTimes(times *[]domain.Time, userId uint) error
+	GetTotalFocusTime(userId uint) (int, error)
+	GetConsecutiveDays(userId uint) (int, error)
+	GetDailyReport(userId uint) ([]domain.HourlyFocus, error)
+	GetWeeklyReport(userId uint, startDate, endDate time.Time) ([]domain.DailyFocus, error)
 	StoreTime(time *domain.Time) error
 }
 
@@ -19,13 +23,91 @@ func NewTimeRepository(db *gorm.DB) ITimeRepository {
 	return &timeRepository{db}
 }
 
-func (tr *timeRepository) GetAllTimes(times *[]domain.Time, userId uint) error {
-	err := tr.db.Joins("User").Where("user_id=?", userId).Order("created_at").Find(times).Error
+func (tr *timeRepository) GetTotalFocusTime(userId uint) (int, error) {
+	var totalFocusTime int
+	err := tr.db.Model(&domain.Time{}).
+		Select("sum(focus_time) as total_focus_time").
+		Where("user_id = ?", userId).
+		Scan(&totalFocusTime).Error
+
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return totalFocusTime, nil
+}
+
+func (tr *timeRepository) GetConsecutiveDays(userId uint) (int, error) {
+	var consecutiveDays int
+	query := `
+	WITH ordered_dates AS (
+	  SELECT
+		user_id,
+		created_at::date AS record_date,
+		created_at::date - lag(created_at::date) OVER (PARTITION BY user_id ORDER BY created_at::date) AS diff
+	  FROM
+		times
+	  WHERE
+		user_id = ?
+	),
+	consecutive_counts AS (
+	  SELECT
+		user_id,
+		record_date,
+		SUM(CASE WHEN diff = 1 THEN 0 ELSE 1 END) OVER (PARTITION BY user_id ORDER BY record_date DESC) AS group_id
+	  FROM
+		ordered_dates
+	)
+	SELECT
+	  MAX(group_id) AS consecutive_days
+	FROM
+	  consecutive_counts
+	WHERE
+	  user_id = ?
+	  AND record_date <= current_date
+	`
+
+	err := tr.db.Raw(query, userId, userId).Row().Scan(&consecutiveDays)
+	if err != nil {
+		return 0, err
+	}
+
+	return consecutiveDays, nil
+}
+
+func (tr *timeRepository) GetDailyReport(userId uint) ([]domain.HourlyFocus, error) {
+	var dailyReport []domain.HourlyFocus
+	err := tr.db.Model(&domain.Time{}).
+		Select("date_trunc('hour', created_at) as Time, sum(focus_time) as focus_time").
+		Where("user_id = ?", userId).
+		Where("created_at >= current_date AND created_at < current_date + interval '1 day'").
+		Group("date_trunc('hour', created_at)").
+		Scan(&dailyReport).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return dailyReport, nil
+}
+
+func (tr *timeRepository) GetWeeklyReport(userId uint, startDate, endDate time.Time) ([]domain.DailyFocus, error) {
+	var weeklyReport []domain.DailyFocus
+	err := tr.db.Model(&domain.Time{}).
+		Select(`
+			to_char(created_at, 'YYYY/MM/DD') as date,
+			to_char(created_at, 'Dy') as day_of_week,
+			SUM(focus_time) as focus_time`).
+		Where("user_id = ? AND created_at BETWEEN ? AND ?", userId, startDate, endDate).
+		Group("to_char(created_at, 'YYYY/MM/DD'), to_char(created_at, 'Dy')").
+		Order("to_char(created_at, 'YYYY/MM/DD') ASC").
+		Scan(&weeklyReport).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return weeklyReport, nil
 }
 
 func (tr *timeRepository) StoreTime(time *domain.Time) error {
