@@ -9,8 +9,6 @@ type Time struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	User      User      `json:"user" gorm:"foreignKey:UserId; constraint:OnDelete:CASCADE"`
 	UserId    uint      `json:"user_id" gorm:"not null"`
-	TaskId    *uint     `json:"task_id,omitempty" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
-	Task      *Task     `json:"task,omitempty" gorm:"foreignKey:TaskId"`
 }
 
 type TimeResponse struct {
