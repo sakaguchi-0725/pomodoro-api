@@ -27,6 +27,8 @@ func (tu *timeUsecase) GetReport(userId uint, reportType, startDate, endDate str
 	}
 
 	var reportRes domain.ReportResponse
+	parsedStartDate, _ := time.Parse("2006-01-02", startDate)
+	parsedEndDate, _ := time.Parse("2006-01-02", endDate)
 
 	totalFocusTime, err := tu.tr.GetTotalFocusTime(userId)
 	if err != nil {
@@ -43,14 +45,12 @@ func (tu *timeUsecase) GetReport(userId uint, reportType, startDate, endDate str
 
 	switch reportType {
 	case "all":
-		now := time.Now()
-
 		dailyReport, err := tu.tr.GetDailyReport(userId)
 		if err != nil {
 			return domain.ReportResponse{}, nil
 		}
 
-		weeklyReport, err := tu.tr.GetWeeklyReport(userId, now.AddDate(0, -2, 0), now)
+		weeklyReport, err := tu.tr.GetWeeklyReport(userId, parsedStartDate, parsedEndDate)
 		if err != nil {
 			return domain.ReportResponse{}, err
 		}
@@ -58,9 +58,6 @@ func (tu *timeUsecase) GetReport(userId uint, reportType, startDate, endDate str
 		reportRes.DailyReport = dailyReport
 		reportRes.WeeklyReport = weeklyReport
 	case "weekly":
-		parsedStartDate, _ := time.Parse("2006-01-02", startDate)
-		parsedEndDate, _ := time.Parse("2006-01-02", endDate)
-
 		weeklyReport, err := tu.tr.GetWeeklyReport(userId, parsedStartDate, parsedEndDate)
 		if err != nil {
 			return domain.ReportResponse{}, err

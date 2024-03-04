@@ -10,8 +10,8 @@ import (
 type ITimeRepository interface {
 	GetTotalFocusTime(userId uint) (int, error)
 	GetConsecutiveDays(userId uint) (int, error)
-	GetDailyReport(userId uint) ([]domain.HourlyFocus, error)
-	GetWeeklyReport(userId uint, startDate, endDate time.Time) ([]domain.DailyFocus, error)
+	GetDailyReport(userId uint) ([]domain.DailyReport, error)
+	GetWeeklyReport(userId uint, startDate, endDate time.Time) ([]domain.WeeklyReport, error)
 	StoreTime(time *domain.Time) error
 }
 
@@ -75,8 +75,8 @@ func (tr *timeRepository) GetConsecutiveDays(userId uint) (int, error) {
 	return consecutiveDays, nil
 }
 
-func (tr *timeRepository) GetDailyReport(userId uint) ([]domain.HourlyFocus, error) {
-	var dailyReport []domain.HourlyFocus
+func (tr *timeRepository) GetDailyReport(userId uint) ([]domain.DailyReport, error) {
+	var dailyReport []domain.DailyReport
 	err := tr.db.Model(&domain.Time{}).
 		Select("date_trunc('hour', created_at) as Time, sum(focus_time) as focus_time").
 		Where("user_id = ?", userId).
@@ -91,16 +91,15 @@ func (tr *timeRepository) GetDailyReport(userId uint) ([]domain.HourlyFocus, err
 	return dailyReport, nil
 }
 
-func (tr *timeRepository) GetWeeklyReport(userId uint, startDate, endDate time.Time) ([]domain.DailyFocus, error) {
-	var weeklyReport []domain.DailyFocus
+func (tr *timeRepository) GetWeeklyReport(userId uint, startDate, endDate time.Time) ([]domain.WeeklyReport, error) {
+	var weeklyReport []domain.WeeklyReport
 	err := tr.db.Model(&domain.Time{}).
 		Select(`
-			to_char(created_at, 'YYYY/MM/DD') as date,
-			to_char(created_at, 'Dy') as day_of_week,
+			DATE(created_at) as date,
 			SUM(focus_time) as focus_time`).
 		Where("user_id = ? AND created_at BETWEEN ? AND ?", userId, startDate, endDate).
-		Group("to_char(created_at, 'YYYY/MM/DD'), to_char(created_at, 'Dy')").
-		Order("to_char(created_at, 'YYYY/MM/DD') ASC").
+		Group("DATE(created_at)").
+		Order("DATE(created_at) ASC").
 		Scan(&weeklyReport).Error
 
 	if err != nil {
