@@ -32,6 +32,5 @@ type DailyReport struct {
 
 type WeeklyReport struct {
 	Date      string `json:"date" gorm:"column:date"`
-	DayOfWeek string `json:"day_of_week" gorm:"column:day_of_week"`
 	FocusTime int    `json:"focus_time" gorm:"column:focus_time"`
 }

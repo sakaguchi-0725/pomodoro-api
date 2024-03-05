@@ -99,7 +99,7 @@ func (tr *timeRepository) GetWeeklyReport(userId uint, startDate, endDate time.T
 			SUM(focus_time) as focus_time`).
 		Where("user_id = ? AND created_at BETWEEN ? AND ?", userId, startDate, endDate).
 		Group("DATE(created_at)").
-		Order("DATE(created_at) ASC").
+		Order("DATE(created_at) DESC").
 		Scan(&weeklyReport).Error
 
 	if err != nil {
