@@ -40,34 +40,23 @@ func (tr *timeRepository) GetTotalFocusTime(userId uint) (int, error) {
 func (tr *timeRepository) GetConsecutiveDays(userId uint) (int, error) {
 	var consecutiveDays int
 	query := `
-	WITH ordered_dates AS (
-	  SELECT
-		user_id,
-		created_at::date AS record_date,
-		created_at::date - lag(created_at::date) OVER (PARTITION BY user_id ORDER BY created_at::date) AS diff
-	  FROM
-		times
-	  WHERE
-		user_id = ?
-	),
-	consecutive_counts AS (
-	  SELECT
-		user_id,
-		record_date,
-		SUM(CASE WHEN diff = 1 THEN 0 ELSE 1 END) OVER (PARTITION BY user_id ORDER BY record_date DESC) AS group_id
-	  FROM
-		ordered_dates
-	)
-	SELECT
-	  MAX(group_id) AS consecutive_days
-	FROM
-	  consecutive_counts
-	WHERE
-	  user_id = ?
-	  AND record_date <= current_date
+	WITH recursive dates AS (
+		SELECT 0 AS day, current_date - INTERVAL '1 day' AS date
+		UNION ALL
+		SELECT d.day + 1, d.date - INTERVAL '1 day'
+		FROM dates d
+		WHERE EXISTS (
+		  SELECT 1
+		  FROM times
+		  WHERE user_id = ?
+			AND DATE(created_at) = d.date
+		)
+	  )
+	  SELECT max(day) AS consecutive_login_days
+	  FROM dates;
 	`
 
-	err := tr.db.Raw(query, userId, userId).Row().Scan(&consecutiveDays)
+	err := tr.db.Raw(query, userId).Row().Scan(&consecutiveDays)
 	if err != nil {
 		return 0, err
 	}
@@ -99,7 +88,7 @@ func (tr *timeRepository) GetWeeklyReport(userId uint, startDate, endDate time.T
 			SUM(focus_time) as focus_time`).
 		Where("user_id = ? AND created_at BETWEEN ? AND ?", userId, startDate, endDate).
 		Group("DATE(created_at)").
-		Order("DATE(created_at) DESC").
+		Order("DATE(created_at) ASC").
 		Scan(&weeklyReport).Error
 
 	if err != nil {
