@@ -34,6 +34,7 @@ func NewRouter(uh handler.IUserHandler, taskHandler handler.ITaskHandler, timeHa
 	e.POST("/signup", uh.SignUp)
 	e.POST("/login", uh.LogIn)
 	e.POST("/logout", uh.LogOut)
+	e.GET("/is-auth", uh.IsAuthenticated)
 	e.GET("/csrf", uh.CsrfToken)
 
 	// Task

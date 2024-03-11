@@ -14,6 +14,7 @@ import (
 type IUserUsecase interface {
 	SignUp(user domain.User) (domain.UserResponse, error)
 	Login(user domain.User) (string, error)
+	VerifyToken(tokenString string) (bool, error)
 }
 
 type userUsecase struct {
@@ -73,4 +74,21 @@ func (uu *userUsecase) Login(user domain.User) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+func (uu *userUsecase) VerifyToken(tokenString string) (bool, error) {
+	securetKey := []byte(os.Getenv("SECRET"))
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return securetKey, nil
+	})
+	if err != nil {
+		return false, nil
+	}
+
+	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return true, nil
+	}
+
+	return false, nil
 }

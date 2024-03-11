@@ -14,6 +14,7 @@ type IUserHandler interface {
 	SignUp(c echo.Context) error
 	LogIn(c echo.Context) error
 	LogOut(c echo.Context) error
+	IsAuthenticated(c echo.Context) error
 	CsrfToken(c echo.Context) error
 }
 
@@ -77,6 +78,20 @@ func (uh *userHandler) LogOut(c echo.Context) error {
 	c.SetCookie(cookie)
 
 	return c.NoContent(http.StatusOK)
+}
+
+func (uh *userHandler) IsAuthenticated(c echo.Context) error {
+	cookie, err := c.Cookie("token")
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]bool{"authenticated": false})
+	}
+
+	authenticated, err := uh.uu.VerifyToken(cookie.Value)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]bool{"authenticated": false})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"authenticated": authenticated})
 }
 
 func (uh *userHandler) CsrfToken(c echo.Context) error {
